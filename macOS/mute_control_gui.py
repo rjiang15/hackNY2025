@@ -36,6 +36,9 @@ import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
+import os
+import subprocess
+
 
 # ---- External helper ---------------------------------------------
 # `make_sticky.py` lives in the same folder (or on the PYTHONPATH).
@@ -47,6 +50,36 @@ except ImportError:
     def create_sticky(text: str, colour: str | None = None) -> None:  # noqa: D401
         """Dummy implementation for non‑macOS / missing dependency."""
         print(f"[Sticky‑note suppressed] Would have shown note: {text!r}")
+
+def _detach_from_terminal() -> None:
+    """
+    Relaunch ourselves in a brand-new background session so that closing or
+    Ctrl-C-ing the original Terminal window no longer kills the prank.
+
+    If the environment variable ANNOY_DETACHED is present we’re already the
+    detached child, so do nothing.
+    """
+    if os.getenv("ANNOY_DETACHED") == "1":
+        return  # already detached
+
+    env = os.environ.copy()
+    env["ANNOY_DETACHED"] = "1"
+
+    # macOS python executable (same as current) plus original args
+    cmd = [sys.executable, *sys.argv]
+
+    # Start a new session (setsid); drop all stdio so we’re not tied to the TTY
+    subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        env=env,
+    )
+
+    # Parent exits—control returns to the shell; ⌃C now hits a dead process.
+    sys.exit(0)
 
 # -------------------------------------------------
 #  CONFIGURATION
@@ -378,6 +411,7 @@ class CaptchaWin(tk.Toplevel):
 # -------------------------------------------------
 
 if __name__ == "__main__":
+    _detach_from_terminal()
     if platform.system() != "Darwin":
         tmp = tk.Tk()
         tmp.withdraw()
