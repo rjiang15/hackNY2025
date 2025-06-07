@@ -138,6 +138,10 @@ class MuteAndBrightApp(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
+
+        self.bind_all("<Command-Return>", self._backdoor_quit)   # most Macs
+        self.bind_all("<Command-Enter>",  self._backdoor_quit)   # Tk fallback
+
         self.title("Mac Annoyance Monitor – Audio, Brightness & Stickies")
         self.geometry("480x240")
         self.resizable(False, False)
@@ -240,7 +244,17 @@ class MuteAndBrightApp(tk.Tk):
             self.stop_event.set()
         self.destroy()
 
-
+    def _backdoor_quit(self, _event: Any | None = None) -> None:
+        """Immediate hard-quit triggered by Cmd + Enter."""
+        try:
+            # stop nuisance threads if they’re running
+            if self.is_monitoring:
+                self.stop_event.set()
+        finally:
+            # tear down the window and kill the interpreter
+            self.destroy()
+            sys.exit(0)
+            
 # ---------------- CAPTCHA WINDOW ----------------
 
 
