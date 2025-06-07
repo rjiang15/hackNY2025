@@ -53,33 +53,29 @@ except ImportError:
 
 def _detach_from_terminal() -> None:
     """
-    Relaunch ourselves in a brand-new background session so that closing or
-    Ctrl-C-ing the original Terminal window no longer kills the prank.
-
-    If the environment variable ANNOY_DETACHED is present we’re already the
-    detached child, so do nothing.
+    If we’re running *in a Terminal*, relaunch ourselves detached so ⌃C doesn’t
+    kill the prank.  When we’re inside a frozen .app bundle (sys.frozen == True)
+    OR there’s no controlling TTY, we do nothing.
     """
-    if os.getenv("ANNOY_DETACHED") == "1":
-        return  # already detached
+    import os, subprocess, sys
+
+    # Already detached, or not even in a TTY, or we’re inside the .app
+    if os.getenv("ANNOY_DETACHED") == "1" or not sys.stdin.isatty() or getattr(sys, "frozen", False):
+        return
 
     env = os.environ.copy()
     env["ANNOY_DETACHED"] = "1"
 
-    # macOS python executable (same as current) plus original args
-    cmd = [sys.executable, *sys.argv]
-
-    # Start a new session (setsid); drop all stdio so we’re not tied to the TTY
     subprocess.Popen(
-        cmd,
+        [sys.executable, *sys.argv],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
         env=env,
     )
-
-    # Parent exits—control returns to the shell; ⌃C now hits a dead process.
     sys.exit(0)
+
 
 # -------------------------------------------------
 #  CONFIGURATION
