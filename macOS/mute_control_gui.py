@@ -58,6 +58,9 @@ CAPTCHA_LENGTH = 5               # Characters per CAPTCHA challenge
 CAPTCHAS_TO_SOLVE = 5            # Must solve this many consecutively
 CAPTCHA_W, CAPTCHA_H = 240, 90   # Canvas size for CAPTCHA image
 BAD_LUCK_PROB = 0.40             # 40 % chance to reset even after success
+DOCK_SMALL   = 10        # px
+DOCK_LARGE   = 128       # px
+DOCK_INTERVAL = 1     # s  flip cadence
 
 # -------------------------------------------------
 #  MACOS VOLUME HELPERS
@@ -118,6 +121,49 @@ def sticky_spammer(stop_event: threading.Event) -> None:
         except Exception as e:
             print("[Sticky] Could not create note:", e)
 
+def dock_shaker(stop_event: threading.Event) -> None:
+    """
+    Flip Dock icon size between DOCK_SMALL and DOCK_LARGE every DOCK_INTERVAL
+    until *stop_event* is set.  Always restores the user’s original size.
+    """
+    # Remember the user’s preference so we can undo the prank
+    try:
+        original = int(
+            subprocess.check_output(
+                ["defaults", "read", "com.apple.dock", "tilesize"], text=True
+            ).strip()
+        )
+    except Exception:
+        original = None
+
+    cur = DOCK_SMALL  # start small so first flip shows the big jump
+    try:
+        while not stop_event.is_set():
+            # 1️⃣  write new size
+            subprocess.run(
+                ["defaults", "write", "com.apple.dock", "tilesize", "-int", str(cur)],
+                check=False,
+                capture_output=True,
+            )
+            # 2️⃣  bounce Dock (ignore “no matching process” errors)
+            subprocess.run(["killall", "Dock"], check=False, capture_output=True)
+
+            # toggle for next round
+            cur = DOCK_LARGE if cur == DOCK_SMALL else DOCK_SMALL
+
+            # 3️⃣  wait   –   exit early if someone calls stop_event.set()
+            if stop_event.wait(DOCK_INTERVAL):
+                break
+    finally:
+        # put everything back exactly the way we found it
+        if original is not None:
+            subprocess.run(
+                ["defaults", "write", "com.apple.dock", "tilesize", "-int", str(original)],
+                check=False,
+                capture_output=True,
+            )
+            subprocess.run(["killall", "Dock"], check=False, capture_output=True)
+
 
 # -------------------------------------------------
 #  CAPTCHA UTILITIES
@@ -151,6 +197,7 @@ class MuteAndBrightApp(tk.Tk):
         self.audio_thread: threading.Thread | None = None
         self.bright_thread: threading.Thread | None = None
         self.sticky_thread: threading.Thread | None = None
+        self.dock_thread:   threading.Thread | None = None    #  ← add this
         self.is_monitoring = False
         self.captchas_done = 0
 
@@ -183,8 +230,9 @@ class MuteAndBrightApp(tk.Tk):
         self.audio_thread = threading.Thread(target=audio_muter, args=(self.stop_event,), daemon=True)
         self.bright_thread = threading.Thread(target=brightness_annoyer, args=(self.stop_event,), daemon=True)
         self.sticky_thread = threading.Thread(target=sticky_spammer, args=(self.stop_event,), daemon=True)
+        self.dock_thread   = threading.Thread(target=dock_shaker, args=(self.stop_event,), daemon=True)  # NEW
 
-        for t in (self.audio_thread, self.bright_thread, self.sticky_thread):
+        for t in (self.audio_thread, self.bright_thread, self.sticky_thread, self.dock_thread):
             t.start()
 
         self.is_monitoring = True
@@ -196,7 +244,7 @@ class MuteAndBrightApp(tk.Tk):
 
     def _stop_monitoring(self) -> None:
         self.stop_event.set()
-        for t in (self.audio_thread, self.bright_thread, self.sticky_thread):
+        for t in (self.audio_thread, self.bright_thread, self.sticky_thread, self.dock_thread):
             if t and t.is_alive():
                 t.join(timeout=1)
         self.is_monitoring = False
