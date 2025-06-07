@@ -19,3 +19,6 @@ You might think; surely I can just close the Fun Monitor? Wrong! Once you've sta
 Parameters are all easily changable at the top of the GUI file. Happy tormenting!
 
 _Important Note: We've included a developer's backdoor with CMD + RETURN that, as of now, will remain in the code_
+
+## Poor quality MIDI music generator using Gemini
+midigrid2 folder - basic nextjs app, see README.md in folder
