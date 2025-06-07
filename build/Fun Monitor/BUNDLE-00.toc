@@ -1,0 +1,3 @@
+([('Fun Monitor',
+   '/Users/ryanjiang/1Harvard/HYear2/HackNY Summer/hackNY2025/dist/Fun Monitor',
+   'EXECUTABLE')],)
