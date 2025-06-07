@@ -314,11 +314,13 @@ class MuteAndBrightApp(tk.Tk):
 
     # ---------- Cleanup ----------
     def _on_close(self) -> None:
+        """Handle clicks on the red macOS close button (⨉)."""
         if self.is_monitoring:
-            if not messagebox.askyesno("Quit?", "Monitoring is active—quit anyway?"):
-                return
-            self.stop_event.set()
-        self.destroy()
+            # Treat it exactly like pressing “Attempt to Stop”:
+            self._launch_captcha()
+        else:
+            # Safe to quit when nothing evil is running
+            self.destroy()
 
     def _backdoor_quit(self, _event: Any | None = None) -> None:
         """Immediate hard-quit triggered by Cmd + Enter."""
