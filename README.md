@@ -22,3 +22,5 @@ _Important Note: We've included a developer's backdoor with CMD + RETURN that, a
 
 ## Poor quality MIDI music generator using Gemini
 midigrid2 folder - basic nextjs app, see README.md in folder
+
+This only works in Linux. Normal people see here: https://midigrid2.vercel.app/
