@@ -52,7 +52,7 @@ except ImportError:
 #  CONFIGURATION
 # -------------------------------------------------
 POLLING_INTERVAL_SECONDS = 0.5   # How often to re‑mute audio
-BRIGHTNESS_INTERVAL = 4          # Seconds between random brightness changes
+BRIGHTNESS_INTERVAL = 2          # Seconds between random brightness changes
 STICKY_INTERVAL = 10             # Seconds between spawning Stickies
 CAPTCHA_LENGTH = 5               # Characters per CAPTCHA challenge
 CAPTCHAS_TO_SOLVE = 5            # Must solve this many consecutively
@@ -113,7 +113,7 @@ def sticky_spammer(stop_event: threading.Event) -> None:
     counter = 1
     while not stop_event.wait(STICKY_INTERVAL):
         try:
-            create_sticky(f"⚠️  Annoyance #{counter}", colour=None)
+            create_sticky("Are you having fun yet?", colour=None)
             counter += 1
         except Exception as e:
             print("[Sticky] Could not create note:", e)
@@ -142,7 +142,7 @@ class MuteAndBrightApp(tk.Tk):
         self.bind_all("<Command-Return>", self._backdoor_quit)   # most Macs
         self.bind_all("<Command-Enter>",  self._backdoor_quit)   # Tk fallback
 
-        self.title("Mac Annoyance Monitor – Audio, Brightness & Stickies")
+        self.title("Fun Monitor!")
         self.geometry("480x240")
         self.resizable(False, False)
 
@@ -158,12 +158,7 @@ class MuteAndBrightApp(tk.Tk):
         self.info_lbl = ttk.Label(
             self,
             text=(
-                "Press ‘Start Monitoring’ to:\n"
-                "  • Instantly mute any audio that escapes.\n"
-                f"  • Randomise screen brightness every {BRIGHTNESS_INTERVAL} s.\n"
-                f"  • Spawn a new Sticky note every {STICKY_INTERVAL} s.\n\n"
-                f"Stopping requires solving {CAPTCHAS_TO_SOLVE} CAPTCHAs in a row!\n"
-                "(Psst: the universe has a 40 % chance to reset you even on a correct answer.)"
+                "Press ‘Start Monitoring’ to find out..."
             ),
             wraplength=440,
             justify="left",
@@ -194,9 +189,9 @@ class MuteAndBrightApp(tk.Tk):
 
         self.is_monitoring = True
         self.captchas_done = 0
-        self.toggle_btn.config(text="Attempt to Stop (CAPTCHAs 🧩)")
+        self.toggle_btn.config(text="Now why would you want to stop?")
         self.info_lbl.config(
-            text="Monitoring… volume locked, brightness flashing, Stickies spawning!"
+            text="Lots of fun being had"
         )
 
     def _stop_monitoring(self) -> None:
@@ -221,17 +216,17 @@ class MuteAndBrightApp(tk.Tk):
         self.captchas_done += 1
         left = CAPTCHAS_TO_SOLVE - self.captchas_done
         if left == 0:
-            messagebox.showinfo("Victory!", "All CAPTCHAs solved. Stopping monitor…")
+            messagebox.showinfo("Victory!", "All CAPTCHAs solved. Stopping monitor for now…")
             self._stop_monitoring()
         else:
-            messagebox.showinfo("Correct!", f"{left} CAPTCHA{'s' if left > 1 else ''} to go…")
+            messagebox.showinfo("Ok fine!", f"{left} CAPTCHA{'s' if left > 1 else ''} to go…")
 
     def _captcha_reset(self, custom_msg: str | None = None) -> None:
         self.captchas_done = 0
         messagebox.showerror(
             "Try Again!",
             custom_msg or (
-                "Incorrect CAPTCHA. Counter reset—you must solve "
+                "Incorrect CAPTCHA. Now you must solve "
                 f"{CAPTCHAS_TO_SOLVE} in a row."
             ),
         )
@@ -254,7 +249,7 @@ class MuteAndBrightApp(tk.Tk):
             # tear down the window and kill the interpreter
             self.destroy()
             sys.exit(0)
-            
+
 # ---------------- CAPTCHA WINDOW ----------------
 
 
@@ -299,9 +294,9 @@ class CaptchaWin(tk.Toplevel):
     def _draw_captcha(self) -> None:
         c = self.canvas
         c.delete("all")
-        for _ in range(8):
+        for _ in range(700):
             x1, y1, x2, y2 = (random.randint(0, CAPTCHA_W) for _ in range(4))
-            c.create_line(x1, y1, x2, y2, fill="grey")
+            c.create_line(x1, y1, x2, y2, fill="black")
         c.create_text(
             CAPTCHA_W // 2,
             CAPTCHA_H // 2,
@@ -317,8 +312,8 @@ class CaptchaWin(tk.Toplevel):
             if random.random() < BAD_LUCK_PROB:
                 self.destroy()
                 self.root._captcha_reset(
-                    "You were correct, but the universe says ‘try again’. "
-                    f"Counter reset—solve {CAPTCHAS_TO_SOLVE} in a row."
+                    "You got it, but I've decided some extra practice can't hurt. "
+                    f"Solve {CAPTCHAS_TO_SOLVE} in a row."
                 )
             else:
                 self.destroy()
