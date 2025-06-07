@@ -2,7 +2,8 @@
 """
 Mac Annoyance Monitor – Mutes audio immediately and sets the screen
 brightness to a random level every 4 seconds.  
-Stopping requires solving a series of CAPTCHAs.
+Stopping requires solving **five CAPTCHAs in a row**; a single mistake
+resets the counter to zero.
 
 Requires:
   • macOS (Darwin)
@@ -25,7 +26,7 @@ import string
 POLLING_INTERVAL_SECONDS = 0.5   # How often to check (seconds) for audio mute
 BRIGHTNESS_INTERVAL = 4          # Seconds between random brightness changes
 CAPTCHA_LENGTH = 5               # Characters per CAPTCHA challenge
-CAPTCHAS_TO_SOLVE = 5            # How many CAPTCHAs to solve to stop monitoring
+CAPTCHAS_TO_SOLVE = 5            # Must solve this many consecutively
 CAPTCHA_W, CAPTCHA_H = 240, 90   # Canvas size for CAPTCHA image
 
 
@@ -62,7 +63,7 @@ def set_master_volume_macos(level: int = 0) -> None:
 #  BACKGROUND WORKER THREADS
 # -------------------------------------------------
 def audio_muter(stop_event: threading.Event) -> None:
-    """Continuously force the system volume to 0 as long as monitoring is active."""
+    """Continuously force the system volume to 0 while monitoring."""
     while not stop_event.is_set():
         if get_current_output_volume_macos() > 0:
             set_master_volume_macos(0)
@@ -184,6 +185,13 @@ class MuteAndBrightApp(tk.Tk):
                 "Correct!", f"{left} CAPTCHA{'s' if left > 1 else ''} to go…"
             )
 
+    def _captcha_reset(self):
+        self.captchas_done = 0
+        messagebox.showerror(
+            "Wrong!",
+            f"Incorrect CAPTCHA. Counter reset—you must solve {CAPTCHAS_TO_SOLVE} in a row."
+        )
+
     # ---------- Cleanup ----------
     def _on_close(self):
         if self.is_monitoring:
@@ -249,7 +257,7 @@ class CaptchaWin(tk.Toplevel):
             CAPTCHA_H // 2,
             text=self.challenge,
             font=("Helvetica", 30, "bold"),
-            fill="black"  # ensure the captcha text is visible
+            fill="black"
         )
 
     def _check(self):
@@ -257,7 +265,7 @@ class CaptchaWin(tk.Toplevel):
             self.destroy()
             self.root._captcha_success()
         else:
-            messagebox.showerror("Nope!", "Incorrect, new CAPTCHA incoming.")
+            self.root._captcha_reset()
             self.challenge = _rand_text()
             self._draw_captcha()
             self.entry.delete(0, tk.END)
