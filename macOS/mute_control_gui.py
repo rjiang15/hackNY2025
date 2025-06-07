@@ -2,8 +2,12 @@
 """
 Mac Annoyance Monitor – Mutes audio immediately and sets the screen
 brightness to a random level every 4 seconds.  
-Stopping requires solving **five CAPTCHAs in a row**; a single mistake
-resets the counter to zero.
+Stopping requires solving **five CAPTCHAs in a row**. A single mistake – or
+pure bad luck – resets the counter to zero:
+
+• Wrong answer → reset.  
+• Correct answer but 40 % cosmic “bad-luck” roll → reset, even though you
+  were right.
 
 Requires:
   • macOS (Darwin)
@@ -28,6 +32,7 @@ BRIGHTNESS_INTERVAL = 4          # Seconds between random brightness changes
 CAPTCHA_LENGTH = 5               # Characters per CAPTCHA challenge
 CAPTCHAS_TO_SOLVE = 5            # Must solve this many consecutively
 CAPTCHA_W, CAPTCHA_H = 240, 90   # Canvas size for CAPTCHA image
+BAD_LUCK_PROB = 0.40             # 40 % chance to reset even after success
 
 
 # -------------------------------------------------
@@ -72,10 +77,7 @@ def audio_muter(stop_event: threading.Event) -> None:
 
 
 def brightness_annoyer(stop_event: threading.Event) -> None:
-    """
-    Every BRIGHTNESS_INTERVAL seconds set the display to a random brightness
-    between 0.0 and 1.0. Stops immediately when stop_event is set.
-    """
+    """Flash brightness every BRIGHTNESS_INTERVAL seconds."""
     while not stop_event.wait(BRIGHTNESS_INTERVAL):
         subprocess.run(
             ["brightness", f"{random.random():.3f}"],
@@ -117,7 +119,8 @@ class MuteAndBrightApp(tk.Tk):
                 "Press ‘Start Monitoring’ to:\n"
                 "  • Instantly mute any audio that escapes.\n"
                 f"  • Randomize screen brightness every {BRIGHTNESS_INTERVAL} s.\n\n"
-                f"Stopping requires solving {CAPTCHAS_TO_SOLVE} CAPTCHAs in a row!"
+                f"Stopping requires solving {CAPTCHAS_TO_SOLVE} CAPTCHAs in a row!\n"
+                "(Psst: even correct answers have a 10 % chance to be rejected.)"
             ),
             wraplength=420,
             justify="left",
@@ -185,11 +188,12 @@ class MuteAndBrightApp(tk.Tk):
                 "Correct!", f"{left} CAPTCHA{'s' if left > 1 else ''} to go…"
             )
 
-    def _captcha_reset(self):
+    def _captcha_reset(self, custom_msg: str | None = None):
         self.captchas_done = 0
         messagebox.showerror(
-            "Wrong!",
-            f"Incorrect CAPTCHA. Counter reset—you must solve {CAPTCHAS_TO_SOLVE} in a row."
+            "Try Again!",
+            custom_msg
+            or f"Incorrect CAPTCHA. Counter reset—you must solve {CAPTCHAS_TO_SOLVE} in a row."
         )
 
     # ---------- Cleanup ----------
@@ -261,9 +265,18 @@ class CaptchaWin(tk.Toplevel):
         )
 
     def _check(self):
-        if self.entry.get().strip().upper() == self.challenge:
-            self.destroy()
-            self.root._captcha_success()
+        answer = self.entry.get().strip().upper()
+        if answer == self.challenge:
+            # Good answer – now roll the cosmic dice
+            if random.random() < BAD_LUCK_PROB:
+                self.destroy()
+                self.root._captcha_reset(
+                    "You were correct, but the universe says ‘try again’. "
+                    f"Counter reset—solve {CAPTCHAS_TO_SOLVE} in a row."
+                )
+            else:
+                self.destroy()
+                self.root._captcha_success()
         else:
             self.root._captcha_reset()
             self.challenge = _rand_text()
